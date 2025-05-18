@@ -1,8 +1,8 @@
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, List, cast
 
-from src.scrapper.clients.base_client import BaseClient
+from src.scrapper.clients.base_client import BaseClient, RequestParams
 
 logger = logging.getLogger(__name__)
 
@@ -22,16 +22,6 @@ class GitHubClient(BaseClient):
             "Accept": "application/vnd.github.v3+json",
         }
 
-    async def _make_request(
-        self,
-        method: str,
-        endpoint: str,
-        params: Optional[Dict[str, Any]] = None,
-        headers: Optional[Dict[str, Any]] = None,
-        **kwargs: Dict[str, Any],
-    ) -> Dict[str, Any]:
-        return await super()._make_request(method, endpoint, params, headers, **kwargs)
-
     async def get_repo_info(self, repo_path: str) -> Dict[str, Any]:
         """Get information about a GitHub repository.
 
@@ -42,8 +32,12 @@ class GitHubClient(BaseClient):
             Repository information.
 
         """
-        endpoint = f"/repos/{repo_path}"
-        return await self._make_request("GET", endpoint, headers=self.headers)
+        request_params = RequestParams(
+            method="GET",
+            endpoint=f"/repos/{repo_path}",
+            headers=self.headers,
+        )
+        return await self._make_request(request_params)
 
     async def get_repo_last_updated(self, repo_path: str) -> datetime:
         """Get the last update time of a GitHub repository.
@@ -76,7 +70,6 @@ class GitHubClient(BaseClient):
             A list of pull requests.
 
         """
-        endpoint = f"/repos/{repo_path}/pulls"
         params = {
             "state": "all",
             "sort": "updated",
@@ -84,8 +77,13 @@ class GitHubClient(BaseClient):
             "per_page": 100,
         }
 
-        result = await self._make_request("GET", endpoint, params=params, headers=self.headers)
-        all_prs = cast(List[Dict[str, Any]], result)
+        request_params = RequestParams(
+            method="GET",
+            endpoint=f"/repos/{repo_path}/pulls",
+            params=params,
+            headers=self.headers,
+        )
+        all_prs = cast(List[Dict[str, Any]], await self._make_request(request_params))
 
         recent_prs = []
         for pr in all_prs:
@@ -130,7 +128,6 @@ class GitHubClient(BaseClient):
             A list of issues.
 
         """
-        endpoint = f"/repos/{repo_path}/issues"
         params = {
             "state": "all",
             "sort": "updated",
@@ -139,8 +136,13 @@ class GitHubClient(BaseClient):
             "filter": "all",
         }
 
-        result = await self._make_request("GET", endpoint, params=params, headers=self.headers)
-        all_issues = cast(List[Dict[str, Any]], result)
+        request_params = RequestParams(
+            method="GET",
+            endpoint=f"/repos/{repo_path}/issues",
+            params=params,
+            headers=self.headers,
+        )
+        all_issues = cast(List[Dict[str, Any]], await self._make_request(request_params))
 
         recent_issues = []
         for issue in all_issues:

@@ -54,7 +54,7 @@ class ORMLinkRepository(LinkRepositoryInterface):
                         if tag_name in existing_tags:
                             tag_objects.append(existing_tags[tag_name])
                         else:
-                            new_tag = TagORM(name=tag_name)
+                            new_tag = TagORM(tag_name=tag_name)
                             session.add(new_tag)
                             await session.flush()
                             tag_objects.append(new_tag)

@@ -66,7 +66,7 @@ class Scheduler:
         self.github_client = GitHubClient()
         self.stackoverflow_client = StackOverflowClient()
         self._running = True
-        self.preview_symbols_count = 200
+        self.preview_symbols_count = 90
 
     async def start(self) -> None:
         """Starts the scheduler."""
@@ -137,7 +137,8 @@ class Scheduler:
             logger.exception("Error processing chat %d", chat_id)
 
     def _get_update_handler(
-        self, url: str,
+        self,
+        url: str,
     ) -> Callable[[str, datetime], Awaitable[Dict[str, Any]]] | None:
         """Returns the update handler function for the given URL or None \
             if the type is not supported.

@@ -6,7 +6,8 @@ class ErrorMessage(StrEnum):
 
     LINK_NOT_FOUND = "🔍 Link not found in your tracking list"
     CHAT_NOT_REGISTERED = "🚨 Chat not registered! Use /start to register"
-    INVALID_COMMAND_USAGE = "❌ Usage: /track(or /untrack) <URL>"
+    INVALID_TRACK_COMMAND_USAGE = "❌ Usage: /track(or /untrack) <URL>"
+    INVALID_MUTE_COMMAND_USAGE = "❌ Usage: /mute(or /unmute) <tag>"
     ERROR_EXPECTED_TEXT_NOT_COMMAND = "❌ Expected text, not command"
     UNKNOWN_URL = "❌ Unknown URL"
     NETWORK = "Network error. Please check your connection and try again."
@@ -21,3 +22,5 @@ class ErrorMessage(StrEnum):
     ERROR_PROCESSING_HELP = "⚠️ BOT ERROR: while processing help. Try again later."
     ERROR_PROCESSING_CHAT_ID = "⚠️ BOT ERROR: while processing chat tg_id. Try again later."
     ERROR_PROCESSING_UNTRACK = "⚠️ BOT ERROR: while processing untrack. Try again later."
+    ERROR_PROCESSING_MUTE = "⚠️ BOT ERROR: while processing mute. Try again later."
+    ERROR_PROCESSING_UNMUTE = "⚠️ BOT ERROR: while processing unmute. Try again later."

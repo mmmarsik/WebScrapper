@@ -1,8 +1,8 @@
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
-from src.scrapper.clients.base_client import BaseClient
+from src.scrapper.clients.base_client import BaseClient, RequestParams
 
 logger = logging.getLogger(__name__)
 
@@ -23,16 +23,6 @@ class StackOverflowClient(BaseClient):
             "key": "",
         }
 
-    async def _make_request(
-        self,
-        method: str,
-        endpoint: str,
-        params: Optional[Dict[str, Any]] = None,
-        headers: Optional[Dict[str, Any]] = None,
-        **kwargs: Dict[str, Any],
-    ) -> Dict[str, Any]:
-        return await super()._make_request(method, endpoint, params, headers, **kwargs)
-
     async def get_question_info(self, question_id: int) -> Dict[str, Any]:
         """Get information about a Stack Overflow question.
 
@@ -43,13 +33,17 @@ class StackOverflowClient(BaseClient):
             Question information.
 
         """
-        endpoint = f"/questions/{question_id}"
         params = {
             **self.api_params,
             "filter": "withbody",
         }
 
-        response = await self._make_request("GET", endpoint, params=params)
+        request_params = RequestParams(
+            method="GET",
+            endpoint=f"/questions/{question_id}",
+            params=params,
+        )
+        response = await self._make_request(request_params)
 
         if response.get("items") and len(response["items"]) > 0:
             return response["items"][0] if response["items"] else {}
@@ -83,7 +77,6 @@ class StackOverflowClient(BaseClient):
             A list of answers.
 
         """
-        endpoint = f"/questions/{question_id}/answers"
         params = {
             **self.api_params,
             "filter": "withbody",
@@ -91,7 +84,12 @@ class StackOverflowClient(BaseClient):
             "order": "desc",
         }
 
-        response = await self._make_request("GET", endpoint, params=params)
+        request_params = RequestParams(
+            method="GET",
+            endpoint=f"/questions/{question_id}/answers",
+            params=params,
+        )
+        response = await self._make_request(request_params)
 
         recent_answers = []
         for answer in response.get("items", []):
@@ -123,7 +121,6 @@ class StackOverflowClient(BaseClient):
             A list of comments.
 
         """
-        endpoint = f"/questions/{question_id}/comments"
         params = {
             **self.api_params,
             "filter": "withbody",
@@ -131,7 +128,12 @@ class StackOverflowClient(BaseClient):
             "order": "desc",
         }
 
-        response = await self._make_request("GET", endpoint, params=params)
+        request_params = RequestParams(
+            method="GET",
+            endpoint=f"/questions/{question_id}/comments",
+            params=params,
+        )
+        response = await self._make_request(request_params)
 
         recent_comments = []
         for comment in response.get("items", []):

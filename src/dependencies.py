@@ -92,12 +92,13 @@ def get_tag_repo(request: Request) -> TagRepositoryInterface:
 
     """
     access_type: RepositoryAccessType = request.app.state.db_settings.access_type
-    if access_type == RepositoryAccessType.ORM:
-        return ORMTagRepository(request.app.state.async_session_maker)
-    elif access_type == RepositoryAccessType.SQL:
-        return SQLTagRepository(request.app.state.sql_connection_pool)
-    else:
-        raise ValueError(f"Unsupported repository access type: {access_type}")
+    match access_type:
+        case RepositoryAccessType.ORM:
+            return ORMTagRepository(request.app.state.async_session_maker)
+        case RepositoryAccessType.SQL:
+            return SQLTagRepository(request.app.state.sql_connection_pool)
+        case _:
+            raise ValueError(f"Unsupported repository access type: {access_type}")
 
 
 def get_http_sender(request: Request) -> HttpSender:

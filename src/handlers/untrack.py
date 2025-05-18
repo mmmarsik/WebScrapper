@@ -31,13 +31,13 @@ async def untrack_handler(event: events.NewMessage.Event, context: CommandContex
     message_text = event.message.raw_text.strip()
     parts = message_text.split(maxsplit=correct_parts_count - 1)
     if len(parts) < correct_parts_count:
-        await event.reply(ErrorMessage.INVALID_COMMAND_USAGE)
+        await event.reply(ErrorMessage.INVALID_TRACK_COMMAND_USAGE)
         return
 
     url = parts[1]
 
     if not url.startswith("http"):
-        await event.reply(ErrorMessage.INVALID_COMMAND_USAGE)
+        await event.reply(ErrorMessage.INVALID_TRACK_COMMAND_USAGE)
         return
 
     try:

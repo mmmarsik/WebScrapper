@@ -1,5 +1,5 @@
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from telethon import TelegramClient, events
 from telethon.tl.functions.bots import SetBotCommandsRequest
@@ -50,7 +50,7 @@ class BotService:
             telegram_client,
         )
         self.handlers_registry = HandlersRegistry()
-        self.bot_id: Optional[int] = None
+        self.bot_id: int | None = None
 
     async def _register_bot_commands(self) -> None:
         """Gathers all bot commands and registers them via Telegram.

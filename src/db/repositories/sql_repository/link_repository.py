@@ -133,11 +133,11 @@ class SQLLinkRepository(LinkRepositoryInterface):
                 async with conn.cursor(row_factory=dict_row) as cur:
                     await cur.execute(
                         "INSERT INTO tags (tag_name) VALUES (%s) ON CONFLICT (tag_name) DO UPDATE "
-                        "SET tag_name = EXCLUDED.tag_name RETURNING id",
+                        "SET tag_name = EXCLUDED.tag_name RETURNING tag_id",
                         (tag,),
                     )
                     if tag_row := await cur.fetchone():
-                        tag_ids.append(tag_row["id"])
+                        tag_ids.append(tag_row["tag_id"])
 
             for tag_id in tag_ids:
                 async with conn.cursor() as cur:
@@ -239,26 +239,14 @@ class SQLLinkRepository(LinkRepositoryInterface):
             links: List[LinkDTO] = []
             for link_row in link_rows:
                 tags_query = """
-                SELECT t.id, t.name
+                SELECT t.tag_id, t.tag_name
                 FROM tags t
-                JOIN links_tags lt ON t.id = lt.tag_id
+                JOIN links_tags lt ON t.tag_id = lt.tag_id
                 WHERE lt.link_id = %s
                 """
                 tag_rows = await self._connection_pool.fetch(tags_query, link_row["link_id"])
-
-                tag_dtos = [TagDTO(tag_name=tag_row["name"]) for tag_row in tag_rows]
-                filters = link_row["filters"].split(",") if link_row["filters"] else []
-
-                links.append(
-                    LinkDTO(
-                        chat_id=link_row["chat_id"],
-                        url=link_row["url"],
-                        last_updated=link_row.get("last_updated"),
-                        tags=tag_dtos,
-                        filters=filters,
-                        muted=link_row["muted"],
-                    ),
-                )
+                tag_dtos = [TagDTO(tag_name=tag_row["tag_name"]) for tag_row in tag_rows]
+                links.append(self._to_dto(link_row, tag_dtos))
 
         except Exception:
             logger.exception("Error listing links")
@@ -292,30 +280,17 @@ class SQLLinkRepository(LinkRepositoryInterface):
             WHERE l.chat_id = %s AND l.url = %s
             """
             link_row = await self._connection_pool.fetchrow(query, chat_id, url)
-            link_row = cast(Dict[str, Any], link_row)
-
             if not link_row:
                 return None
-
             tags_query = """
-            SELECT t.id, t.name
+            SELECT t.tag_id, t.tag_name
             FROM tags t
-            JOIN links_tags lt ON t.id = lt.tag_id
+            JOIN links_tags lt ON t.tag_id = lt.tag_id
             WHERE lt.link_id = %s
             """
             tag_rows = await self._connection_pool.fetch(tags_query, link_row["link_id"])
-
             tag_dtos = [TagDTO(tag_name=tag_row["tag_name"]) for tag_row in tag_rows]
-            filters = link_row["filters"].split(",") if link_row["filters"] else []
-
-            return LinkDTO(
-                chat_id=link_row["chat_id"],
-                url=link_row["url"],
-                last_updated=link_row["last_updated"],
-                tags=tag_dtos,
-                filters=filters,
-                muted=link_row["muted"],
-            )
+            return self._to_dto(link_row, tag_dtos)
         except Exception:
             logger.exception("Error getting link")
             raise
@@ -363,6 +338,28 @@ class SQLLinkRepository(LinkRepositoryInterface):
 
         return result is not None
 
+    def _to_dto(self, link_row: Dict[str, Any], tags: List[TagDTO]) -> LinkDTO:
+        """Converts a SQL query result row and a list of tags to a LinkDTO object.
+
+        This method takes a dictionary representing a row from a SQL query result
+        and a list of TagDTOs, and constructs a LinkDTO object. It handles the
+        'filters' field by splitting it into a list.
+
+        Args:
+            link_row (dict): A dictionary representing a row from a SQL query result.
+            tags (List[TagDTO]): A list of TagDTOs associated with the link.
+
+        """
+        filters = link_row["filters"].split(",") if link_row["filters"] else []
+        return LinkDTO(
+            chat_id=link_row["chat_id"],
+            url=link_row["url"],
+            last_updated=link_row["last_updated"],
+            tags=tags,
+            filters=filters,
+            muted=link_row["muted"],
+        )
+
     async def get_links_by_tag(self, chat_id: int, tag: str) -> List[LinkDTO]:
         """Get all links for a chat with a specific tag.
 
@@ -382,40 +379,28 @@ class SQLLinkRepository(LinkRepositoryInterface):
             raise ValueError("Tag cannot be empty")
         try:
             query = """
-            SELECT l.link_id, l.chat_id, l.url, l.last_updated, l.filters, \
-                  COALESCE(lm.muted, FALSE) as muted
+            SELECT l.link_id, l.chat_id, l.url, l.last_updated, l.filters,
+                   COALESCE(lm.muted, FALSE) as muted
             FROM tracked_links l
             JOIN links_tags lt ON l.link_id = lt.link_id
-            JOIN tags t ON lt.tag_id = t.id
+            JOIN tags t ON lt.tag_id = t.tag_id
             LEFT JOIN link_mute_statuses lm ON l.link_id = lm.link_id
-            WHERE l.chat_id = %s AND t.name = %s
+            WHERE l.chat_id = %s AND t.tag_name = %s
             """
             link_rows = await self._connection_pool.fetch(query, chat_id, tag)
 
             links: List[LinkDTO] = []
             for link_row in link_rows:
                 tags_query = """
-                SELECT t.id, t.name
+                SELECT t.tag_id, t.tag_name
                 FROM tags t
-                JOIN links_tags lt ON t.id = lt.tag_id
+                JOIN links_tags lt ON t.tag_id = lt.tag_id
                 WHERE lt.link_id = %s
                 """
                 tag_rows = await self._connection_pool.fetch(tags_query, link_row["link_id"])
 
-                tag_dtos = [TagDTO(tag_name=tag_row["name"]) for tag_row in tag_rows]
-                filters = link_row["filters"].split(",") if link_row["filters"] else []
-
-                links.append(
-                    LinkDTO(
-                        chat_id=link_row["chat_id"],
-                        url=link_row["url"],
-                        last_updated=link_row["last_updated"],
-                        tags=tag_dtos,
-                        filters=filters,
-                        muted=link_row["muted"],
-                    ),
-                )
-
+                tag_dtos = [TagDTO(tag_name=tag_row["tag_name"]) for tag_row in tag_rows]
+                links.append(self._to_dto(link_row, tag_dtos))
         except Exception:
             logger.exception("Error getting links by tag")
             raise
@@ -442,23 +427,28 @@ class SQLLinkRepository(LinkRepositoryInterface):
             raise ValueError("Url cannot be empty")
         try:
             link_query = """
-            SELECT link_id
-            FROM tracked_links
-            WHERE chat_id = %s AND url = %s
+                SELECT link_id
+                FROM tracked_links
+                WHERE chat_id = %s AND url = %s
             """
             link_row = await self._connection_pool.fetchrow(link_query, chat_id, url)
             if not link_row:
                 return False
 
             query = """
-            INSERT INTO link_mute_statuses (link_id, muted)
-            VALUES (%s, %s)
-            ON CONFLICT (link_id) DO UPDATE
-            SET muted = %s
-            RETURNING link_id
+                INSERT INTO link_mute_statuses (link_id, chat_id, muted)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (link_id, chat_id) DO UPDATE
+                SET muted = %s
+                RETURNING link_id
             """
-            result = await self._connection_pool.fetchrow(query, link_row["link_id"], muted, muted)
-            result = cast(Dict[str, Any], result)
+            result = await self._connection_pool.fetchrow(
+                query,
+                link_row["link_id"],
+                chat_id,
+                muted,
+                muted,
+            )
         except Exception:
             logger.exception("Error updating link mute status")
             raise
@@ -488,18 +478,18 @@ class SQLLinkRepository(LinkRepositoryInterface):
                 COALESCE(lm.muted, FALSE) as muted
             FROM tracked_links l
             JOIN links_tags lt ON l.link_id = lt.link_id
-            JOIN tags t ON lt.tag_id = t.id
+            JOIN tags t ON lt.tag_id = t.tag_id
             LEFT JOIN link_mute_statuses lm ON l.link_id = lm.link_id
-            WHERE l.chat_id = %s AND t.name = %s
+            WHERE l.chat_id = %s AND t.tag_name = %s
             """
             link_rows = await self._connection_pool.fetch(query, chat_id, tag_name)
 
             links: List[LinkDTO] = []
             for link_row in link_rows:
                 tags_query = """
-                SELECT t.id, t.name
+                SELECT t.tag_id, t.tag_name
                 FROM tags t
-                JOIN links_tags lt ON t.id = lt.tag_id
+                JOIN links_tags lt ON t.tag_id = lt.tag_id
                 WHERE lt.link_id = %s
                 """
                 tag_rows = await self._connection_pool.fetch(tags_query, link_row["link_id"])
